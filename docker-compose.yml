@@ -1,0 +1,151 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: healthcare-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - healthcare-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: ./auth-service
+    container_name: healthcare-auth-service
+    restart: unless-stopped
+    ports:
+      - "${AUTH_SERVICE_PORT}:3001"
+    environment:
+      - MONGO_URI=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/healthcare_auth?authSource=admin
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_EXPIRY=${JWT_EXPIRY}
+      - JWT_REFRESH_EXPIRY=${JWT_REFRESH_EXPIRY}
+      - PORT=3001
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - healthcare-network
+
+  patient-service:
+    build: ./patient-service
+    container_name: healthcare-patient-service
+    restart: unless-stopped
+    ports:
+      - "${PATIENT_SERVICE_PORT}:3002"
+    environment:
+      - MONGO_URI=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/healthcare_patients?authSource=admin
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+      - PORT=3002
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - healthcare-network
+
+  appointment-service:
+    build: ./appointment-service
+    container_name: healthcare-appointment-service
+    restart: unless-stopped
+    ports:
+      - "${APPOINTMENT_SERVICE_PORT}:3003"
+    environment:
+      - MONGO_URI=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/healthcare_appointments?authSource=admin
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - PATIENT_SERVICE_URL=${PATIENT_SERVICE_URL}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+      - PORT=3003
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - healthcare-network
+
+  prescription-service:
+    build: ./prescription-service
+    container_name: healthcare-prescription-service
+    restart: unless-stopped
+    ports:
+      - "${PRESCRIPTION_SERVICE_PORT}:3004"
+    environment:
+      - MONGO_URI=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/healthcare_prescriptions?authSource=admin
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - PATIENT_SERVICE_URL=${PATIENT_SERVICE_URL}
+      - APPOINTMENT_SERVICE_URL=${APPOINTMENT_SERVICE_URL}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+      - PORT=3004
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - healthcare-network
+
+  notification-service:
+    build: ./notification-service
+    container_name: healthcare-notification-service
+    restart: unless-stopped
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT}:3005"
+    environment:
+      - MONGO_URI=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/healthcare_notifications?authSource=admin
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - PORT=3005
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - healthcare-network
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: healthcare-api-gateway
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT}:3000"
+    environment:
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - PATIENT_SERVICE_URL=${PATIENT_SERVICE_URL}
+      - APPOINTMENT_SERVICE_URL=${APPOINTMENT_SERVICE_URL}
+      - PRESCRIPTION_SERVICE_URL=${PRESCRIPTION_SERVICE_URL}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+    depends_on:
+      - auth-service
+      - patient-service
+      - appointment-service
+      - prescription-service
+      - notification-service
+    networks:
+      - healthcare-network
+
+  seed:
+    build: ./seed
+    container_name: healthcare-seed
+    environment:
+      - GATEWAY_URL=http://api-gateway:3000/api
+    depends_on:
+      - api-gateway
+    networks:
+      - healthcare-network
+    profiles:
+      - seed
+
+volumes:
+  mongodb_data:
+
+networks:
+  healthcare-network:
+    driver: bridge
