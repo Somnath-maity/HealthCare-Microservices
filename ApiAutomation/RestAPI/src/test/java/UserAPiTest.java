@@ -1,19 +1,59 @@
-import org.junit.jupiter.api.Test;
+//package com.healthcare;
 
 import io.restassured.RestAssured;
-import io.restassured.response.Response;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
-public class UserAPiTest {
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+
+class UserApiTest {
+
+    private static String accessToken;
+
+    @BeforeAll
+    static void login() {
+        RestAssured.baseURI = "http://localhost:3000";
+
+        accessToken =
+                given()
+                        .contentType("application/json")
+                        .body("""
+                    {
+                      "email": "admin@healthcare.com",
+                      "password": "Admin@123"
+                    }
+                    """)
+                        .when()
+                        .post("/api/auth/login")
+                        .then()
+                        .statusCode(200)
+                        .body("message", equalTo("Login successful"))
+                        .body("accessToken", not(emptyString()))
+                        .extract()
+                        .path("accessToken");
+    }
+
     @Test
-    void getUserById_shouldReturn200AndCorrectData() {
-        Response response = RestAssured.get("https://reqres.in/api/users/2");
-        int statusCode = response.getStatusCode();
-        assertEquals(200, statusCode);
-        int id = response.jsonPath().getInt("data.id");
-        assertEquals(2,id);
-        String email = response.jsonPath().getString("data.email");
-        assertNotNull(email);
-        assertFalse(email.isEmpty());
+    void shouldReturnHealthyGateway() {
+        given()
+                .when()
+                .get("/health")
+                .then()
+                .statusCode(200)
+                .body("status", equalTo("healthy"))
+                .body("gateway", equalTo("running"));
+    }
+
+    @Test
+    void shouldReturnAuthenticatedUserProfile() {
+        given()
+                .header("Authorization", "Bearer " + accessToken)
+                .when()
+                .get("/api/auth/profile")
+                .then()
+                .statusCode(200)
+                .body("user.email", equalTo("admin@healthcare.com"))
+                .body("user.role", equalTo("admin"));
     }
 }
