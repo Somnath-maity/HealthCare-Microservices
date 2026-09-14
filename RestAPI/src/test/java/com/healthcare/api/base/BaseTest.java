@@ -6,6 +6,6 @@ import org.junit.jupiter.api.BeforeAll;
 public class BaseTest {
     @BeforeAll
     static void setup() {
-        RestAssured.baseURI = "https://api.healthcare.gov.uk";
+        RestAssured.baseURI = "http://localhost:3000";
     }
 }
