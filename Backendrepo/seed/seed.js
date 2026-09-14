@@ -244,17 +244,21 @@ const patients = [
 ];
 
 async function waitForServices() {
-  console.log("Waiting for services to be ready...");
+  const healthUrl = GATEWAY.replace(/\/api\/?$/, "") + "/health";
+  console.log(`Waiting for services to be ready (polling ${healthUrl})...`);
   const maxRetries = 30;
   for (let i = 0; i < maxRetries; i++) {
     try {
-      await axios.get(`${GATEWAY}/auth/health`.replace("/api/auth", "").replace("/api", "").replace("//", "/") || `http://api-gateway:3000/health`);
-      console.log("Gateway is ready!");
-      return;
+      const res = await axios.get(healthUrl);
+      if (res.data?.status === "healthy") {
+        console.log("All services are healthy!");
+        return;
+      }
+      console.log(`Attempt ${i + 1}/${maxRetries} - Services degraded, waiting...`);
     } catch {
       console.log(`Attempt ${i + 1}/${maxRetries} - Services not ready yet...`);
-      await delay(3000);
     }
+    await delay(3000);
   }
   throw new Error("Services did not become ready in time");
 }

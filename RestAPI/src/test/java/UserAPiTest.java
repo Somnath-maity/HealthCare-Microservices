@@ -44,16 +44,6 @@ class UserApiTest {
                 .body("status", equalTo("healthy"))
                 .body("gateway", equalTo("running"));
     }
-@Test
-    void shouldReturnHealthyGateway() {
-        given()
-                .when()
-                .get("/health")
-                .then()
-                .statusCode(200)
-                .body("status", equalTo("healthy"))
-                .body("gateway", equalTo("running"));
-    }
 
     @Test
     void shouldReturnAuthenticatedUserProfile() {

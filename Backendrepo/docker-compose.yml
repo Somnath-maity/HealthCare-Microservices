@@ -35,6 +35,12 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - healthcare-network
 
@@ -52,6 +58,12 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3002/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - healthcare-network
 
@@ -70,6 +82,12 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3003/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - healthcare-network
 
@@ -89,6 +107,12 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3004/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - healthcare-network
 
@@ -105,6 +129,12 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3005/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - healthcare-network
 
@@ -123,11 +153,22 @@ services:
       - PRESCRIPTION_SERVICE_URL=${PRESCRIPTION_SERVICE_URL}
       - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
     depends_on:
-      - auth-service
-      - patient-service
-      - appointment-service
-      - prescription-service
-      - notification-service
+      auth-service:
+        condition: service_healthy
+      patient-service:
+        condition: service_healthy
+      appointment-service:
+        condition: service_healthy
+      prescription-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
     networks:
       - healthcare-network
 
@@ -137,7 +178,8 @@ services:
     environment:
       - GATEWAY_URL=http://api-gateway:3000/api
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
     networks:
       - healthcare-network
     profiles:
