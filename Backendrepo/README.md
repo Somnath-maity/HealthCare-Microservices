@@ -163,3 +163,23 @@ docker-compose up --build
 - **Error scenarios**: 400, 401, 403, 404, 409 responses to test
 - **Bulk operations**: Bulk delete notifications
 - **Statistics endpoints**: Aggregated data for validation
+
+## Patient database tests
+
+The patient service includes model validation tests and MongoDB integration tests. From `patient-service/`, run the model tests with:
+
+```sh
+npm test
+```
+
+The integration test writes, reads, updates, and deletes a uniquely named patient record. It refuses to connect unless `MONGO_TEST_URI` points to the dedicated `healthcare_patients_test` database, so it cannot target the normal patient database by mistake.
+
+Start MongoDB from `Backendrepo/`. Then, from `patient-service/`, set `MONGO_TEST_URI` to the test database URI and run the integration test. For the Compose MongoDB instance, replace the placeholders with the URL-encoded values from your local `.env`:
+
+```powershell
+cd Backendrepo
+docker compose up -d mongodb
+$env:MONGO_TEST_URI = "mongodb://<encoded-user>:<encoded-password>@localhost:27017/healthcare_patients_test?authSource=admin"
+cd patient-service
+npm run test:db
+```

@@ -435,7 +435,7 @@ async function seed() {
           authHeader
         );
         createdAppointments.push(res.data.appointment || res.data);
-        console.log(`  Created appointment: ${patient.firstName} with ${doctor.name} - ${appt.type}`);
+        console.log(` Created appointment: ${patient.firstName} with ${doctor.name} - ${appt.type}`);
       } catch (err) {
         console.log(`  Skipped appointment: ${err.response?.data?.error || err.message}`);
       }
@@ -533,9 +533,9 @@ async function seed() {
           },
           authHeader
         );
-        console.log(`  Created prescription for ${patient.firstName}: ${rx.diagnosis}`);
+        console.log(`Created prescription for ${patient.firstName}: ${rx.diagnosis}`);
       } catch (err) {
-        console.log(`  Skipped prescription: ${err.response?.data?.error || err.message}`);
+        console.log(`Skipped prescription: ${err.response?.data?.error || err.message}`);
       }
       await delay(200);
     }

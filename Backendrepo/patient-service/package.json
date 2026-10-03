@@ -5,7 +5,9 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/patient.model.test.js",
+    "test:db": "node --test test/patient.database.test.js"
   },
   "dependencies": {
     "express": "^4.18.2",
