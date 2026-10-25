@@ -1,93 +1,200 @@
 # Healthcare API Automation
 
-A REST Assured and JUnit 5 test project for a containerized healthcare API. The repository contains the backend services and the Java API automation suite in separate folders.
+REST Assured + JUnit 5 automation suite for a containerized healthcare platform with microservices architecture.
 
-## Repository layout
+## Tech Stack
 
-```text
+| Layer | Technology |
+|-------|-----------|
+| Language | Java 21 |
+| Build | Maven |
+| HTTP Client | REST Assured 5.4.0 |
+| Test Framework | JUnit 5 (Jupiter 5.10.2) |
+| Backend Under Test | Node.js microservices + MongoDB (Docker Compose) |
+
+## Repository Layout
+
+```
 .
-├── Backendrepo/   Node.js healthcare services, API gateway, MongoDB, and seed data
-└── RestAPI/       Java 21, Maven, REST Assured, and JUnit 5 API tests
+├── Backendrepo/          # Healthcare microservices (Docker Compose)
+│   ├── api-gateway/      # Routes all /api/* requests (:3000)
+│   ├── auth-service/     # JWT auth, user management (:3001)
+│   ├── patient-service/  # Patient CRUD, medical records (:3002)
+│   ├── appointment-service/  # Appointment lifecycle (:3003)
+│   ├── prescription-service/ # Prescriptions, refills (:3004)
+│   ├── notification-service/ # Alerts, bulk operations (:3005)
+│   └── docker-compose.yml
+│
+└── RestAPI/              # API automation suite
+    ├── pom.xml
+    └── src/test/java/com/healthcare/api/
+        ├── base/
+        │   └── BaseTest.java          # Shared REST Assured config
+        └── tests/
+            └── auth/
+                └── LoginTests.java    # Authentication test cases
 ```
 
-The backend is composed of an API gateway and five services: authentication, patients, appointments, prescriptions, and notifications. MongoDB stores service data. The gateway is available at `http://localhost:3000` and routes requests under `/api/*` to the corresponding service.
+## Architecture Under Test
 
-## Prerequisites
+```
+         ┌──────────────────────────────────────────────────┐
+         │              API Gateway (:3000)                  │
+         │   /api/auth  /api/patients  /api/appointments     │
+         │   /api/prescriptions  /api/notifications          │
+         └──────┬─────────┬─────────┬─────────┬─────────┬───┘
+                │         │         │         │         │
+           Auth      Patient   Appointment Prescription Notification
+          :3001      :3002       :3003       :3004       :3005
+                │         │         │         │
+                └─────────┴─────────┴─────────┘
+                              │
+                          MongoDB
+                          :27017
+```
 
-- Docker Desktop or another Docker Compose installation
+All tests hit the API gateway at `localhost:3000` — individual services are not called directly.
+
+## Getting Started
+
+### Prerequisites
+
+- Docker Desktop (or Rancher Desktop)
 - Java 21
-- Maven 3.6.3 or later
+- Maven 3.6.3+
 
-## Start the backend
+### 1. Start the Backend
 
-Run Compose commands from `Backendrepo/`:
-
-```sh
+```bash
 cd Backendrepo
 docker compose up --build -d
 ```
 
-Compose reads configuration from `Backendrepo/.env`. Keep this local file private; if it is missing, create it using the variable names referenced in `docker-compose.yml` (MongoDB credentials, JWT secrets and expirations, published service ports, and internal service URLs). Use strong, unique secrets for any non-local deployment.
+### 2. Seed Sample Data
 
-Wait for the gateway health check and inspect service status:
-
-```sh
-docker compose ps
-curl http://localhost:3000/health
-```
-
-The gateway health response reports the status of its downstream services. Service ports and URLs are configurable through the Compose environment. The default gateway port is `3000`.
-
-### Load sample data
-
-The seed container is in the `seed` Compose profile and waits for the gateway to become healthy:
-
-```sh
+```bash
 docker compose --profile seed run --rm seed
 ```
 
-To stop the services:
+This creates demo users across all roles (admin, doctor, nurse, receptionist, patient) with pre-populated patients, appointments, and prescriptions.
 
-```sh
-docker compose down
+### 3. Verify Backend Health
+
+```bash
+curl http://localhost:3000/health
 ```
 
-To also delete the persisted MongoDB volume and all local data:
+### 4. Run the Tests
 
-```sh
-docker compose down -v
-```
-
-The seed command creates demo accounts and records. Their credentials are documented in [`Backendrepo/README.md`](Backendrepo/README.md); use them only with a local seeded environment.
-
-## Run the API tests
-
-Start the backend and load its sample data first. Then run the Maven suite:
-
-```sh
+```bash
 cd RestAPI
 mvn test
 ```
 
-The test base URL is currently set to `http://localhost:3000` in `src/test/java/com/healthcare/api/base/BaseTest.java`. The existing tests cover successful admin login and rejection of an incorrect password. The login test expects the seeded admin account.
+## Test Coverage
 
-## Current test coverage
+### Authentication (`LoginTests`)
 
-- `com.healthcare.api.tests.auth.LoginTests`
-  - Valid admin login returns access and refresh tokens and expected user details.
-  - Wrong password returns HTTP 401.
+| Test | Endpoint | Validates |
+|------|----------|-----------|
+| `adminCanLoginSuccessfully` | `POST /api/auth/login` | 200 response, access/refresh tokens present, user email/role/id in response body |
+| `loginFailsWithWrongPassword` | `POST /api/auth/login` | 401 rejection for invalid credentials |
 
-Add new JUnit 5 test classes under `RestAPI/src/test/java` and reuse `BaseTest` for the shared REST Assured base URI.
+## API Endpoints Available for Automation
 
-## API and backend documentation
+The healthcare platform exposes 40+ endpoints across five services. Key areas to automate:
 
-- [`Backendrepo/README.md`](Backendrepo/README.md): service architecture, endpoint inventory, demo credentials, and API automation scenarios.
-- [`Backendrepo/dockerGuide.md`](Backendrepo/dockerGuide.md): Docker health checks and seed troubleshooting.
+### Auth Service (`/api/auth`)
+- User registration, login, token refresh
+- Profile management (get/update)
+- Password changes, logout
+- Admin user management (list, get by ID, activate/deactivate)
 
-Useful gateway routes include `GET /health` for service health and `GET /api/services` for service discovery. Authentication endpoints are under `/api/auth`; patient, appointment, prescription, and notification routes are under `/api/patients`, `/api/appointments`, `/api/prescriptions`, and `/api/notifications` respectively. Most resource routes require a bearer access token.
+### Patient Service (`/api/patients`)
+- Patient CRUD with role-based access
+- Medical records (add, update, retrieve)
+- Pagination, search, and filtering
 
-## Notes
+### Appointment Service (`/api/appointments`)
+- Appointment CRUD with status workflow (scheduled → confirmed → completed/cancelled)
+- Filter by doctor or patient
+- Statistics endpoint
 
-- The Java suite targets Java 21 and uses Maven dependencies declared in `RestAPI/pom.xml`.
-- The backend consists of independent Node.js services and a Docker Compose deployment; the Java tests call the gateway rather than individual services.
-- `Backendrepo/.env` contains local runtime configuration and is excluded from version control. Do not commit credentials or production secrets.
+### Prescription Service (`/api/prescriptions`)
+- Prescription CRUD (doctor-only create/update)
+- Refill requests
+- Filter by doctor or patient
+- Statistics endpoint
+
+### Notification Service (`/api/notifications`)
+- List, read, bulk delete
+- Unread count and stats
+
+## Test Credentials (Seeded Data)
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@healthcare.com | Admin@123 |
+| Doctor | dr.smith@healthcare.com | Doctor@123 |
+| Nurse | nurse.williams@healthcare.com | Nurse@123 |
+| Receptionist | reception@healthcare.com | Reception@123 |
+| Patient | patient.doe@email.com | Patient@123 |
+
+## Project Patterns
+
+### Base Test Setup
+
+All test classes extend `BaseTest`, which configures the REST Assured base URI:
+
+```java
+public class BaseTest {
+    @BeforeAll
+    static void setup() {
+        RestAssured.baseURI = "http://localhost:3000";
+    }
+}
+```
+
+### Writing a New Test
+
+1. Create a class under `src/test/java/com/healthcare/api/tests/`
+2. Extend `BaseTest`
+3. Use REST Assured's BDD style (`given()` / `when()` / `then()`)
+
+```java
+public class PatientTests extends BaseTest {
+    @Test
+    void shouldListPatients() {
+        given()
+            .header("Authorization", "Bearer " + accessToken)
+        .when()
+            .get("/api/patients")
+        .then()
+            .statusCode(200);
+    }
+}
+```
+
+## What to Automate Next
+
+- **Token lifecycle** — register, login, refresh, access protected endpoints, logout
+- **Role-based access** — verify doctors can create prescriptions but patients cannot
+- **CRUD flows** — create → read → update → delete for patients, appointments, prescriptions
+- **Chained requests** — login → create patient → create appointment → create prescription
+- **Negative scenarios** — 400 (bad request), 403 (forbidden), 404 (not found), 409 (conflict)
+- **Pagination & filtering** — query params for search, sort, page size
+- **Status workflows** — appointment and prescription state transitions
+- **Inter-service validation** — creating an appointment validates the patient exists first
+
+## Tear Down
+
+```bash
+cd Backendrepo
+docker compose down       # stop services
+docker compose down -v    # stop and delete all data
+```
+
+## Additional Documentation
+
+- [Backendrepo/README.md](Backendrepo/README.md) — full endpoint inventory, all test credentials, service architecture
+- [Backendrepo/dockerGuide.md](Backendrepo/dockerGuide.md) — Docker health checks and seed troubleshooting
